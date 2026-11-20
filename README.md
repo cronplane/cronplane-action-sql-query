@@ -1,12 +1,12 @@
 # sql-query
 
-Reads the result of a SQL query into the stream `records`, from PostgreSQL. The query is a file of the flow; the action reads it in a read-only transaction and writes one record per row, with a `schema.json` that the next steps check each record against.
+Reads the result of a SQL query into the stream `records`, from PostgreSQL: all of it, or only the rows that follow those the last successful run read. The query is a file of the flow; the action reads it in a read-only transaction and writes one record per row, with a `schema.json` that the next steps check each record against.
 
 ```yaml
 steps:
   - id: extract
     uses: hub/sql-query@0.1
-    with: {params: {country: "${inputs.country}"}}
+    with: {cursor: updated_at, key: [id], start: "2026-01-01", params: {country: "${inputs.country}"}}
     flow_files: {query: ["sql/customers.sql"], types: ["types/customers.yaml"]}
     secrets: {DATABASE_URL: crm_db}
     network: {allow: ["db.acme.internal:5432"]}
@@ -30,11 +30,33 @@ GROUP BY c.id
 | Input | Type | Use |
 |---|---|---|
 | `params` | map of strings, untrusted | The values of the query's parameters (`:country`). |
+| `cursor` | string | A column of the result that grows (`updated_at`): each run reads the rows that follow those of the last successful run. |
+| `key` | list of strings | The columns that identify a row (`[id]`): the key of the stream; with `cursor`, they tell apart the rows of the same cursor. Required with `cursor`. |
+| `start` | string, untrusted | With `cursor`, at the first run: the rows from this cursor (`2026-01-01`). |
+| `lookback` | integer, 0 | With a cursor of date and time: seconds read again under the cursor. |
 | `timeout` | integer, 600 | Seconds each statement may take. |
 | `batch_size` | integer, 10000 | Rows fetched at a time. |
 | `max_rejected` | integer, 0 | Rows the step may reject before it fails. |
 
-`params` is untrusted: a value can come from whoever starts a run. The action only binds it as a parameter of the query; it never writes it into the query. The query and `params` must name the same parameters, else the step fails and lists both. A colon in a literal of the query is written `\:` (`'{"a"\:1}'`).
+`params` and `start` are untrusted: a value can come from whoever starts a run. The action only binds them as parameters of the query; it never writes them into the query. The query and `params` must name the same parameters, else the step fails and lists both. A colon in a literal of the query is written `\:` (`'{"a"\:1}'`); a parameter is cast with `CAST(:country AS text)`, not `:country::text`. A name that starts with `cronplane_` is the action's.
+
+## Reading from where the last run stopped
+
+With `cursor` and `key`, the action wraps the query; write it without the cursor:
+
+```sql
+SELECT * FROM (<the query of the flow>) AS q
+WHERE (q.updated_at, q.id) > (<cursor kept>, <last key kept>) OR q.updated_at IS NULL
+ORDER BY q.updated_at, q.id
+```
+
+- The first run reads every row, or those from `start`.
+- The key tells apart the rows of the same cursor: none is read twice, none is lost.
+- The state of the step keeps the last row read: `{"cursor": "2026-11-19T10:00:00+00:00", "last_key": [3], "columns": {"cursor": "updated_at", "key": ["id"]}}`. Cronplane keeps it only when the whole run succeeds: after a failure, the next run reads the same rows again.
+- A row without cursor (NULL) is never after the cursor: it is rejected (`cursor is null`) at each run, and counts in `max_rejected`. Correct the data, or use `COALESCE` in the query.
+- A row whose cursor was set at the start of a long transaction can be committed after a later run read past it: it is lost. `lookback` reads that many seconds again under the cursor; give it at least the length of the longest transaction that writes the cursor. Rows read again go again to the destination, which updates them.
+- When `cursor` or `key` changes, the state no longer applies: the step stops and asks `cronplane state reset <flow> --step <step>`. A change of the query alone keeps the state.
+- A cursor is of type `int2`, `int4`, `int8`, `numeric`, `date`, `timestamp`, `timestamptz`, `text` or `varchar`.
 
 ## Secrets
 

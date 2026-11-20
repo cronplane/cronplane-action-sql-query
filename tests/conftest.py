@@ -6,6 +6,7 @@ from __future__ import annotations
 import gzip
 import json
 import os
+import shutil
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -36,7 +37,7 @@ class Step:
 
     def run(self) -> int:
         """The exit code of the step: 0 when it succeeds."""
-        values = {"params": {}, "timeout": 600, "batch_size": 100, "max_rejected": 0}
+        values = {"params": {}, "timeout": 600, "batch_size": 100, "max_rejected": 0, "lookback": 0}
         values.update(self.inputs)
         (self.root / "with.json").write_text(json.dumps(values))
         secrets = self.root / "secrets"
@@ -51,7 +52,13 @@ class Step:
             "CRONPLANE_FLOW_FILES": str(self.root / "flow"),
             "CRONPLANE_SECRETS": str(secrets),
             "CRONPLANE_STEP_ID": "extract",
+            "CRONPLANE_STATE_OUT": str(self.root / "state-out.json"),
         }
+        kept = self.root / "state.json"
+        if kept.exists():
+            env["CRONPLANE_STATE"] = str(kept)
+        else:
+            self.monkeypatch.delenv("CRONPLANE_STATE", raising=False)
         if self.allow is not None:
             env["CRONPLANE_NETWORK_ALLOW"] = self.allow
         for name, value in env.items():
@@ -61,6 +68,21 @@ class Step:
         except SystemExit as e:
             return int(e.code or 0)
         return 0
+
+    def next_run(self) -> int:
+        """Keeps the state this run wrote, as Cronplane does after a run that
+        succeeds, and runs the step again with new files."""
+        out = self.root / "state-out.json"
+        if out.exists():
+            out.replace(self.root / "state.json")
+        shutil.rmtree(self.root / "files")
+        (self.root / "files").mkdir()
+        return self.run()
+
+    @property
+    def state(self) -> dict[str, Any] | None:
+        out = self.root / "state-out.json"
+        return json.loads(out.read_text()) if out.exists() else None
 
     @property
     def output(self) -> dict[str, Any]:

@@ -9,6 +9,14 @@ inputs:
     default: {}
     untrusted: true
     description: The values of the query's parameters (:name), bound, never written into the query
+  cursor: {type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,62}$', description: "A column of the result that grows: read from where the last successful run stopped"}
+  key:
+    type: list
+    items: {type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,62}$'}
+    max_items: 5
+    description: The columns that identify a row; with cursor, they tell apart the rows of the same cursor
+  start: {type: string, max_length: 64, untrusted: true, description: "With cursor, at the first run: the rows from this cursor (2026-01-01)"}
+  lookback: {type: integer, min: 0, max: 604800, default: 0, description: "Seconds read again under the cursor, for rows written late"}
   timeout: {type: integer, min: 1, max: 86400, default: 600, description: Seconds each statement may take}
   batch_size: {type: integer, min: 100, max: 100000, default: 10000, description: Rows fetched at a time}
   max_rejected: {type: integer, min: 0, max: 1000000, default: 0, description: Rows the step may reject before it fails}
@@ -21,6 +29,7 @@ outputs:
   rows: {type: integer, required: true}
   rejected: {type: integer, required: true}
 streams: {produces: [records]}
+state: true
 network: true
 runtime: python
 python: ["3.11", "3.12", "3.13", "3.14"]
