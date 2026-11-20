@@ -1,0 +1,29 @@
+version: 1
+name: sql-query
+description: Reads the result of a SQL query into a stream of records, from PostgreSQL
+inputs:
+  params:
+    type: map
+    keys: {pattern: '^[a-z_][a-z0-9_]{0,62}$'}
+    values: {type: string, max_length: 1024}
+    default: {}
+    untrusted: true
+    description: The values of the query's parameters (:name), bound, never written into the query
+  timeout: {type: integer, min: 1, max: 86400, default: 600, description: Seconds each statement may take}
+  batch_size: {type: integer, min: 100, max: 100000, default: 10000, description: Rows fetched at a time}
+  max_rejected: {type: integer, min: 0, max: 1000000, default: 0, description: Rows the step may reject before it fails}
+secrets:
+  DATABASE_URL: {description: "postgresql+psycopg://user:password@host:port/database", required: true, delivery: file}
+flow_files:
+  query: {description: "The SQL query, one .sql file", required: true}
+  types: {description: "Corrections of the column types, one .yaml or .json file", required: false}
+outputs:
+  rows: {type: integer, required: true}
+  rejected: {type: integer, required: true}
+streams: {produces: [records]}
+network: true
+runtime: python
+python: ["3.11", "3.12", "3.13", "3.14"]
+lock: uv.lock
+file: main.py
+requires: {cronplane: ">=0.1"}
