@@ -1,0 +1,11 @@
+# A new version waits 7 days, a security fix does not.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule: { interval: weekly, day: monday, time: "07:00", timezone: Europe/Paris }
+    cooldown: { default-days: 7 }
+    groups:
+      python:
+        patterns: ["*"]
+    commit-message: { prefix: build }
