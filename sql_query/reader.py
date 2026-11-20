@@ -62,11 +62,14 @@ def read(
                 result = connection.execution_options(
                     stream_results=True, yield_per=batch_size
                 ).execute(query.clause, query.params)
-                raw = connection.connection.dbapi_connection
-                if not isinstance(raw, psycopg.Connection) or result.cursor is None:
-                    raise SqlQueryError("the query gives no rows (is it a SELECT?)")
-                columns = [_column(d, raw) for d in result.cursor.description or ()]
-                yield Result(columns, iter(result))
+                try:
+                    raw = connection.connection.dbapi_connection
+                    if not isinstance(raw, psycopg.Connection) or result.cursor is None:
+                        raise SqlQueryError("the query gives no rows (is it a SELECT?)")
+                    columns = [_column(d, raw) for d in result.cursor.description or ()]
+                    yield Result(columns, iter(result))
+                finally:
+                    result.close()
     except SQLAlchemyError as e:
         raise _failure(e) from None
     finally:
