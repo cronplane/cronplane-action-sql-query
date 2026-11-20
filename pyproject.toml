@@ -5,6 +5,7 @@ requires-python = ">=3.11"
 dependencies = [
     "cronplane-actions>=0.1,<1",
     "psycopg[binary]>=3.3,<4",
+    "pymysql>=1.1,<2",
     "ruamel-yaml>=0.18,<0.20",
     "sqlalchemy>=2.1,<3",
 ]

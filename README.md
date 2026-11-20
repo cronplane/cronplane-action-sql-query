@@ -1,6 +1,6 @@
 # sql-query
 
-Reads the result of a SQL query into the stream `records`, from PostgreSQL: all of it, or only the rows that follow those the last successful run read. The query is a file of the flow; the action reads it in a read-only transaction and writes one record per row, with a `schema.json` that the next steps check each record against.
+Reads the result of a SQL query into the stream `records`, from PostgreSQL, MySQL or MariaDB: all of it, or only the rows that follow those the last successful run read. The query is a file of the flow; the action reads it in a read-only transaction and writes one record per row, with a `schema.json` that the next steps check each record against.
 
 ```yaml
 steps:
@@ -56,13 +56,14 @@ ORDER BY q.updated_at, q.id
 - A row without cursor (NULL) is never after the cursor: it is rejected (`cursor is null`) at each run, and counts in `max_rejected`. Correct the data, or use `COALESCE` in the query.
 - A row whose cursor was set at the start of a long transaction can be committed after a later run read past it: it is lost. `lookback` reads that many seconds again under the cursor; give it at least the length of the longest transaction that writes the cursor. Rows read again go again to the destination, which updates them.
 - When `cursor` or `key` changes, the state no longer applies: the step stops and asks `cronplane state reset <flow> --step <step>`. A change of the query alone keeps the state.
-- A cursor is of type `int2`, `int4`, `int8`, `numeric`, `date`, `timestamp`, `timestamptz`, `text` or `varchar`.
+- A cursor is an integer, a decimal, a date, a date and time, or text: `int2`, `int4`, `int8`, `numeric`, `date`, `timestamp`, `timestamptz`, `text`, `varchar` on PostgreSQL; `TINYINT` to `BIGINT`, `DECIMAL`, `DATE`, `DATETIME`, `TIMESTAMP`, `CHAR`, `VARCHAR` on MySQL and MariaDB.
+- An index on the cursor and the key (`CREATE INDEX ON customers (updated_at, id)`) lets the database read only the new rows: PostgreSQL applies the condition before a `GROUP BY` of the query.
 
 ## Secrets
 
 | Secret | Use |
 |---|---|
-| `DATABASE_URL` | `postgresql+psycopg://user:password@host:port/database`. Options: `sslmode`, `sslrootcert=system`, `application_name`; any other option is refused. The password is masked. Use an account that can only read. |
+| `DATABASE_URL` | PostgreSQL: `postgresql+psycopg://user:password@host:port/database`, options `sslmode`, `sslrootcert=system`, `application_name`. MySQL and MariaDB: `mysql+pymysql://user:password@host:port/database?charset=utf8mb4`, options `charset=utf8mb4` and `sslmode=verify-full` (TLS, the certificate checked against the system's authorities and the host name). Any other option is refused. The password is masked. Use an account that can only read. |
 
 ## Flow files
 
@@ -91,7 +92,18 @@ The stream `records` holds one record per row. The type of each column comes fro
 | `json`, `jsonb` | any value |
 | `<type>[]` | `array` of that type |
 
-Another type stops the step: cast it in the query (`zone::text AS zone`), or give its type in the types file. A value with no JSON form (`NaN`) rejects its row.
+| MySQL, MariaDB | JSON Schema (each with `"null"`) |
+|---|---|
+| `TINYINT`, `SMALLINT`, `MEDIUMINT`, `INT`, `BIGINT`, `YEAR` | `integer` |
+| `TINYINT(1)`, `BOOLEAN` | `boolean` (0 and 1; another value rejects its row) |
+| `DECIMAL`, `FLOAT`, `DOUBLE` | `number` |
+| `CHAR`, `VARCHAR`, `TEXT`, `ENUM`, `SET` | `string` |
+| `DATE`, `DATETIME`, `TIMESTAMP`, `TIME` | `string` (`TIME` as `-01:30:00`) |
+| `JSON` | any value on MySQL; text on MariaDB, where `JSON` is a `LONGTEXT` |
+
+Another type (`interval`, `bytea`, `BLOB`, `BINARY`, `BIT`, geometries) stops the step: cast it in the query (`zone::text AS zone`, `CAST(zone AS CHAR) AS zone`), or give its type in the types file. A value with no JSON form (`NaN`) rejects its row.
+
+On MySQL and MariaDB the session is read-only and each statement is stopped after `timeout` (`max_execution_time` on MySQL, for `SELECT`; `max_statement_time` on MariaDB). A `DATETIME` or `TIMESTAMP` has no time zone: the records and the state keep it as the server gives it.
 
 ## Types file
 
@@ -115,9 +127,9 @@ The step must give `network: {allow: [...]}` with the host and port of the datab
 ## Checking it
 
 ```sh
-docker compose -f <kit>/fixtures/compose.yaml --profile postgres up -d --wait
+docker compose -f <kit>/fixtures/compose.yaml --profile postgres --profile mysql --profile mariadb up -d --wait
 export CRONPLANE_BIN=/path/to/cronplane
 uv run --project <kit>/python cronplane-kit check .
 ```
 
-The tests use the PostgreSQL of the kit's fixtures; `SQL_QUERY_POSTGRES` gives another one.
+The tests use the PostgreSQL, MySQL and MariaDB of the kit's fixtures (`--profile postgres --profile mysql --profile mariadb`); `SQL_QUERY_POSTGRES` gives another PostgreSQL, `SQL_QUERY_MYSQL_SERVERS` the servers to test (`mysql,mariadb`).

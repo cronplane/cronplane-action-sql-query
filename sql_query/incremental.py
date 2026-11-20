@@ -30,8 +30,9 @@ from .query import RESERVED, Query
 #: The types a cursor may have: they order, and their JSON value reads back.
 CURSOR_TYPES: Final = frozenset(
     {"int2", "int4", "int8", "numeric", "date", "timestamp", "timestamptz", "text", "varchar"}
+    | {"tinyint", "smallint", "mediumint", "int", "bigint", "decimal", "datetime", "char"}
 )
-DATE_TIMES: Final = frozenset({"timestamp", "timestamptz"})
+DATE_TIMES: Final = frozenset({"timestamp", "timestamptz", "datetime"})
 
 
 @dataclass(frozen=True)

@@ -8,6 +8,8 @@ import pytest
 
 from sql_query import corrections
 from sql_query.columns import DriverColumn, driver_schema, record_schema
+from sql_query.database import Kind
+from sql_query.reader import mysql_type
 from tests.helpers import refused
 
 
@@ -113,3 +115,43 @@ def test_an_unknown_type_names_what_the_database_calls_it() -> None:
 def test_an_empty_correction_replaces_the_type() -> None:
     schema = record_schema([DriverColumn("zone", None, shown="geometry")], {"zone": {}})
     assert schema == {"type": "object", "properties": {"zone": {}}}
+
+
+@pytest.mark.parametrize(
+    ("code", "charset", "flags", "length", "name"),
+    [
+        (1, 63, 0, 4, "tinyint"),
+        (1, 63, 0, 1, "bool"),
+        (8, 63, 32, 20, "bigint"),
+        (246, 63, 0, 12, "decimal"),
+        (253, 224, 0, 20, "varchar"),
+        (253, 63, 128, 4, "varbinary"),
+        (252, 224, 16, 65535, "text"),
+        (252, 63, 144, 65535, "blob"),
+        (254, 224, 256, 4, "enum"),
+        (254, 224, 2048, 12, "set"),
+        (245, 63, 0, 0, "json"),
+        (16, 63, 32, 3, "bit"),
+        (99, 63, 0, 0, None),
+    ],
+)
+def test_the_mysql_protocol_names_the_type(
+    code: int, charset: int, flags: int, length: int, name: str | None
+) -> None:
+    assert mysql_type(code, charset, flags, length) == name
+
+
+@pytest.mark.parametrize(
+    ("type_name", "schema"),
+    [
+        ("bool", {"type": ["boolean", "null"]}),
+        ("year", {"type": ["integer", "null"]}),
+        ("decimal", {"type": ["number", "null"]}),
+        ("enum", {"type": ["string", "null"]}),
+        ("datetime", {"type": ["string", "null"]}),
+        ("json", {}),
+        ("blob", None),
+    ],
+)
+def test_a_mysql_type_gets_a_json_type(type_name: str, schema: dict[str, object] | None) -> None:
+    assert driver_schema(DriverColumn("a", type_name, database=Kind.MYSQL)) == schema

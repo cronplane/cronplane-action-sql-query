@@ -1,6 +1,6 @@
 version: 1
 name: sql-query
-description: Reads the result of a SQL query into a stream of records, from PostgreSQL
+description: Reads the result of a SQL query into a stream of records, from PostgreSQL, MySQL or MariaDB
 inputs:
   params:
     type: map
@@ -21,7 +21,7 @@ inputs:
   batch_size: {type: integer, min: 100, max: 100000, default: 10000, description: Rows fetched at a time}
   max_rejected: {type: integer, min: 0, max: 1000000, default: 0, description: Rows the step may reject before it fails}
 secrets:
-  DATABASE_URL: {description: "postgresql+psycopg://user:password@host:port/database", required: true, delivery: file}
+  DATABASE_URL: {description: "postgresql+psycopg://user:password@host:port/database or mysql+pymysql://…", required: true, delivery: file}
 flow_files:
   query: {description: "The SQL query, one .sql file", required: true}
   types: {description: "Corrections of the column types, one .yaml or .json file", required: false}

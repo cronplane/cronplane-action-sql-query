@@ -9,6 +9,7 @@ from typing import Final
 
 from cronplane_actions import JsonValue
 
+from .database import Kind
 from .errors import SqlQueryError
 
 
@@ -17,7 +18,7 @@ class DriverColumn:
     """What the driver says of a column of the result."""
 
     name: str
-    #: The PostgreSQL name of its type (`int4`, `varchar`); `None`: unknown to the driver.
+    #: The name of its type in the database (`int4`, `varchar`); `None`: unknown to the driver.
     type_name: str | None
     #: Its elements are of `type_name` (`int4[]`).
     array: bool = False
@@ -25,6 +26,7 @@ class DriverColumn:
     length: int | None = None
     #: Shown in an error, for a type out of the table (`geometry`).
     shown: str | None = None
+    database: Kind = Kind.POSTGRES
 
 
 def _plain(kind: str) -> Callable[[DriverColumn], dict[str, JsonValue]]:
@@ -60,6 +62,23 @@ POSTGRES: Final[Mapping[str, Callable[[DriverColumn], dict[str, JsonValue]]]] = 
 }
 
 
+# Each MySQL and MariaDB type, as `dialects.mysql_type` names it.
+MYSQL: Final[Mapping[str, Callable[[DriverColumn], dict[str, JsonValue]]]] = {
+    **{
+        name: _plain("integer")
+        for name in ("tinyint", "smallint", "mediumint", "int", "bigint", "year")
+    },
+    "bool": _plain("boolean"),
+    **{name: _plain("number") for name in ("decimal", "float", "double")},
+    **{name: _plain("string") for name in ("char", "varchar", "text", "enum", "set")},
+    **{name: _plain("string") for name in ("date", "datetime", "timestamp", "time")},
+    "json": lambda _column: {},
+}
+
+TABLES: Final = {Kind.POSTGRES: POSTGRES, Kind.MYSQL: MYSQL}
+CASTS: Final = {Kind.POSTGRES: "{0}::text AS {0}", Kind.MYSQL: "CAST({0} AS CHAR) AS {0}"}
+
+
 def _nullable(schema: dict[str, JsonValue]) -> dict[str, JsonValue]:
     kind = schema.get("type")
     if isinstance(kind, str):
@@ -69,7 +88,7 @@ def _nullable(schema: dict[str, JsonValue]) -> dict[str, JsonValue]:
 
 def driver_schema(column: DriverColumn) -> dict[str, JsonValue] | None:
     """The schema of the column's values; `None` for a type out of the table."""
-    build = POSTGRES.get(column.type_name or "")
+    build = TABLES[column.database].get(column.type_name or "")
     if build is None:
         return None
     if column.array:
@@ -100,8 +119,8 @@ def record_schema(
         if schema is None:
             shown = column.shown or column.type_name or "unknown"
             raise SqlQueryError(
-                f"column {column.name}: the PostgreSQL type {shown} has no JSON type; "
-                f"cast it in the query ({column.name}::text AS {column.name}) "
+                f"column {column.name}: the {column.database} type {shown} has no JSON type; "
+                f"cast it in the query ({CASTS[column.database].format(column.name)}) "
                 "or give its type in the types file"
             )
         properties[column.name] = schema
