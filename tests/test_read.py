@@ -89,6 +89,17 @@ def test_the_types_file_corrects_some_columns(step: Step, db: psycopg.Connection
     assert step.output == {"rows": 1, "rejected": 1}
 
 
+def test_a_decimal_column_typed_string_keeps_every_digit(
+    step: Step, db: psycopg.Connection[Any]
+) -> None:
+    step.flow_file("query", "q.sql", "SELECT 12345678901234567.89::numeric AS total, 1.5 AS rate")
+    step.flow_file("types", "t.yaml", "columns:\n  total: {type: string}\n")
+
+    assert step.run() == 0
+
+    assert step.records == [{"total": "12345678901234567.89", "rate": 1.5}]
+
+
 def test_more_rejected_rows_than_allowed_fail_the_step(
     step: Step, db: psycopg.Connection[Any], capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -116,6 +116,8 @@ columns:
   total: {type: [string, "null"]}                  # more than 15 digits
 ```
 
+A decimal column (`numeric`, `DECIMAL`) given as a string keeps every digit: `"12345678901234567.89"`.
+
 It is read as YAML 1.2. An unquoted `yes`, `no`, `on` or `off` is refused (YAML 1.1 reads it as a boolean): quote it. A column of the file that the query does not give stops the step.
 
 A row that does not fit the schema is rejected: it goes to `rejected/records/<step>/` with the reason, and counts in `max_rejected`.

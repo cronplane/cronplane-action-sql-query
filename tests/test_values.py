@@ -7,9 +7,10 @@ import uuid
 from decimal import Decimal
 
 import pytest
+from cronplane_actions import JsonValue
 
 from sql_query.errors import Rejected
-from sql_query.values import to_json
+from sql_query.values import decimal_text, to_json
 
 
 @pytest.mark.parametrize(
@@ -41,3 +42,27 @@ def test_a_driver_value_becomes_json(value: object, expected: object) -> None:
 def test_a_value_without_json_form_is_rejected(value: object) -> None:
     with pytest.raises(Rejected):
         to_json(value)
+
+
+def test_a_decimal_is_its_exact_text_where_the_column_takes_a_string() -> None:
+    assert to_json(Decimal("12345678901234567.89"), decimal_text=True) == "12345678901234567.89"
+    assert to_json(Decimal("1E+2"), decimal_text=True) == "100"
+    assert to_json([Decimal("0.10")], decimal_text=True) == ["0.10"]
+    with pytest.raises(Rejected):
+        to_json(Decimal("NaN"), decimal_text=True)
+
+
+@pytest.mark.parametrize(
+    ("schema", "text"),
+    [
+        ({"type": "string"}, True),
+        ({"type": ["string", "null"]}, True),
+        ({"type": ["string", "number"]}, False),
+        ({"type": "number"}, False),
+        ({}, False),
+    ],
+)
+def test_a_column_takes_decimals_as_text_when_its_type_allows_a_string_only(
+    schema: dict[str, JsonValue], text: bool
+) -> None:
+    assert decimal_text(schema) is text

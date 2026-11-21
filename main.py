@@ -15,7 +15,7 @@ from sql_query.flow_files import one_file
 from sql_query.incremental import Mark, Plan, advanced, check_columns, last_mark, wrap
 from sql_query.query import Query, read_source
 from sql_query.reader import read
-from sql_query.values import to_json
+from sql_query.values import decimal_text, to_json
 
 STREAM = "records"
 
@@ -69,6 +69,7 @@ def run(action: Action) -> None:
         check_columns(plan, result.columns)
         schema = record_schema(result.columns, columns_fixed)
         names = [c.name for c in result.columns]
+        texts = [name in columns_fixed and decimal_text(columns_fixed[name]) for name in names]
         writer = action.streams.writer(
             STREAM,
             schema,
@@ -80,9 +81,9 @@ def run(action: Action) -> None:
             for row in result.rows:
                 record: dict[str, JsonValue] = {}
                 problem = None
-                for name, value in zip(names, row, strict=True):
+                for name, text, value in zip(names, texts, row, strict=True):
                     try:
-                        record[name] = to_json(value)
+                        record[name] = to_json(value, decimal_text=text)
                     except Rejected as e:
                         record[name] = str(value)
                         problem = problem or f"{name}: {e}"
