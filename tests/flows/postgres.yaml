@@ -1,0 +1,16 @@
+version: 1
+name: sql-query-postgres
+bundle: {include: ["sql/**", "expected/**"]}
+steps:
+  - id: read
+    uses: /
+    with: {params: {min: "2"}}
+    flow_files: {query: ["sql/postgres.sql"], types: ["sql/types.yaml"]}
+    secrets: {DATABASE_URL: postgres_url}
+    network: {allow: ["127.0.0.1:55432"]}
+
+  - id: check
+    needs: [read]
+    runtime: shell
+    streams: {consumes: [records]}
+    script: gzip -dc "$CRONPLANE_NEEDED_FILES"/streams/records/part-*.jsonl.gz | diff expected/postgres.jsonl -

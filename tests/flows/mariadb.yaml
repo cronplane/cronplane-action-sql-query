@@ -1,0 +1,16 @@
+version: 1
+name: sql-query-mariadb
+bundle: {include: ["sql/**", "expected/**"]}
+steps:
+  - id: read
+    uses: /
+    with: {params: {min: "2"}}
+    flow_files: {query: ["sql/mysql.sql"], types: ["sql/types.yaml"]}
+    secrets: {DATABASE_URL: mariadb_url}
+    network: {allow: ["127.0.0.1:53307"]}
+
+  - id: check
+    needs: [read]
+    runtime: shell
+    streams: {consumes: [records]}
+    script: gzip -dc "$CRONPLANE_NEEDED_FILES"/streams/records/part-*.jsonl.gz | diff expected/mariadb.jsonl -
