@@ -8,7 +8,7 @@ services:
     healthcheck: {test: ["CMD", "pg_isready", "-U", "fixture"], interval: 2s, retries: 30}
 
   mysql:
-    image: docker.io/library/mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    image: docker.io/library/mysql:26.10@sha256:3819b2b23835c4a73c8b022fafc33c8095c0f81c929a8b7a84613d2fba6c52f5
     environment: {MYSQL_ROOT_PASSWORD: fixture, MYSQL_USER: fixture, MYSQL_PASSWORD: fixture, MYSQL_DATABASE: fixture}
     ports: ["127.0.0.1:53306:3306"]
     healthcheck: {test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-pfixture"], interval: 2s, retries: 60}
