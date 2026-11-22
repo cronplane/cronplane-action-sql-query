@@ -1,4 +1,4 @@
-"""The action on MySQL and MariaDB, those of the kit's fixtures
+"""The action on MySQL and MariaDB, those of `tests/compose.yaml`
 (`SQL_QUERY_MYSQL_SERVERS`: the servers to test, `mysql,mariadb` by default)."""
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ def server(request: pytest.FixtureRequest) -> Iterator[tuple[str, pymysql.Connec
     name: str = request.param
     connection = pymysql.connect(
         host="127.0.0.1", port=SERVERS[name], user="fixture",
-        password="fixture",  # noqa: S106 # the kit's fixtures
+        password="fixture",  # noqa: S106 # the test value of tests/compose.yaml
         database="fixture", autocommit=True,
     )  # fmt: skip
     with connection.cursor() as cursor:

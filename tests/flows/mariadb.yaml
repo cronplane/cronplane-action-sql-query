@@ -1,6 +1,11 @@
 version: 1
 name: sql-query-mariadb
 bundle: {include: ["sql/**", "expected/**"]}
+test:
+  level: integration
+  services: [mariadb]
+  secrets:
+    mariadb_url: mysql+pymysql://fixture:fixture@127.0.0.1:53307/fixture?charset=utf8mb4
 steps:
   - id: read
     uses: /

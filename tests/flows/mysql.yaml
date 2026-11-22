@@ -1,6 +1,11 @@
 version: 1
 name: sql-query-mysql
 bundle: {include: ["sql/**", "expected/**"]}
+test:
+  level: integration
+  services: [mysql]
+  secrets:
+    mysql_url: mysql+pymysql://fixture:fixture@127.0.0.1:53306/fixture?charset=utf8mb4
 steps:
   - id: read
     uses: /

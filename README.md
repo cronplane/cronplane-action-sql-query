@@ -129,9 +129,8 @@ The step must give `network: {allow: [...]}` with the host and port of the datab
 ## Checking it
 
 ```sh
-docker compose -f <kit>/fixtures/compose.yaml --profile postgres --profile mysql --profile mariadb up -d --wait
 export CRONPLANE_BIN=/path/to/cronplane
 uv run --project <kit>/python cronplane-kit check .
 ```
 
-The tests use the PostgreSQL, MySQL and MariaDB of the kit's fixtures (`--profile postgres --profile mysql --profile mariadb`); `SQL_QUERY_POSTGRES` gives another PostgreSQL, `SQL_QUERY_MYSQL_SERVERS` the servers to test (`mysql,mariadb`).
+The kit starts the PostgreSQL, MySQL and MariaDB of `tests/compose.yaml` for its integration level, runs the tests that need them (marked `integration`) and the flows of `tests/flows`, then stops them. With `--services running` it leaves them alone: they listen already. `POSTGRES_URL` gives another PostgreSQL to the tests, `SQL_QUERY_MYSQL_SERVERS` the servers to test (`mysql,mariadb`).

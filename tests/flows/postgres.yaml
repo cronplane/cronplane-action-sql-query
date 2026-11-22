@@ -1,6 +1,12 @@
 version: 1
 name: sql-query-postgres
 bundle: {include: ["sql/**", "expected/**"]}
+test:
+  level: integration
+  example: true
+  services: [postgres]
+  secrets:
+    postgres_url: postgresql+psycopg://fixture:fixture@127.0.0.1:55432/fixture
 steps:
   - id: read
     uses: /

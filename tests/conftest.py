@@ -1,5 +1,6 @@
 """A step of the action, run as Cronplane runs it, against the PostgreSQL of
-the kit's fixtures (`SQL_QUERY_POSTGRES` to use another)."""
+`tests/compose.yaml`. The kit gives its address in `POSTGRES_URL`, the test
+value of the integration flows."""
 
 from __future__ import annotations
 
@@ -18,8 +19,17 @@ import pytest
 from main import main
 
 POSTGRES = os.environ.get(
-    "SQL_QUERY_POSTGRES", "postgresql+psycopg://fixture:fixture@127.0.0.1:55432/fixture"
+    "POSTGRES_URL", "postgresql+psycopg://fixture:fixture@127.0.0.1:55432/fixture"
 )
+
+#: The fixtures that talk to a service: a test that takes one is an integration test.
+SERVICES = frozenset({"step", "db", "server"})
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        if SERVICES.intersection(getattr(item, "fixturenames", ())):
+            item.add_marker(pytest.mark.integration)
 
 
 @dataclass

@@ -1,0 +1,20 @@
+# The databases of the integration level, named in test.services of the flows.
+# Checked by Cronplane: images with a tag and a digest, ports on 127.0.0.1 only.
+services:
+  postgres:
+    image: docker.io/library/postgres:17@sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07
+    environment: {POSTGRES_USER: fixture, POSTGRES_PASSWORD: fixture, POSTGRES_DB: fixture}
+    ports: ["127.0.0.1:55432:5432"]
+    healthcheck: {test: ["CMD", "pg_isready", "-U", "fixture"], interval: 2s, retries: 30}
+
+  mysql:
+    image: docker.io/library/mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    environment: {MYSQL_ROOT_PASSWORD: fixture, MYSQL_USER: fixture, MYSQL_PASSWORD: fixture, MYSQL_DATABASE: fixture}
+    ports: ["127.0.0.1:53306:3306"]
+    healthcheck: {test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-pfixture"], interval: 2s, retries: 60}
+
+  mariadb:
+    image: docker.io/library/mariadb:11.4@sha256:5e73baf8179b29f115101bb102763a47a017361f3e9792daccba6646c3ab1532
+    environment: {MARIADB_ROOT_PASSWORD: fixture, MARIADB_USER: fixture, MARIADB_PASSWORD: fixture, MARIADB_DATABASE: fixture}
+    ports: ["127.0.0.1:53307:3306"]
+    healthcheck: {test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"], interval: 2s, retries: 60}

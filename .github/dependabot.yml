@@ -9,3 +9,9 @@ updates:
       python:
         patterns: ["*"]
     commit-message: { prefix: build }
+  # The images of the databases the integration level starts.
+  - package-ecosystem: docker-compose
+    directory: /tests
+    schedule: { interval: weekly, day: monday, time: "07:00", timezone: Europe/Paris }
+    cooldown: { default-days: 7 }
+    commit-message: { prefix: build }

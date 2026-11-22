@@ -15,6 +15,7 @@ package = false
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = ["integration: needs a service of tests/compose.yaml"]
 # A cursor left open, or any other warning, fails the tests.
 filterwarnings = ["error"]
 
